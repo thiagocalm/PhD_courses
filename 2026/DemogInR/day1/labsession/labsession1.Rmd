@@ -1,0 +1,165 @@
+---
+title: "labsession1"
+output:
+  pdf_document: default
+  html_document: default
+date: "2026-07-06"
+editor_options:
+  chunk_output_type: console
+---
+
+## R Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+# setting the wd ----------------------------------------------------------
+# setting it to the course folder
+
+setwd(file.path(here::here(),"courses","2026","DemogInR"))
+
+# Packages
+library(tidyverse)
+```
+
+## Data import
+
+Data comes from HMD and HFD dataset for Spain in 2014.
+
+```{r rpackages}
+b <- read_csv("https://raw.githubusercontent.com/timriffe/BSSD2026Module2/refs/heads/master/data/ES_B2014.csv")
+d <- read_csv("https://raw.githubusercontent.com/timriffe/BSSD2026Module2/refs/heads/master/data/ES_D2014.csv")
+p <- read_csv("https://raw.githubusercontent.com/timriffe/BSSD2026Module2/refs/heads/master/data/ES_P2014.csv")
+```
+
+## Tasks
+
+### task 1: calculate exposures
+
+Let's calculate the exposure based on averaging the population from the start and end of the year. Here, we are going to use this strategy.
+
+$$E = \frac{P(1) + P(2)}{2}$$
+
+We are going to work with tidy dataset: there is a (or some) key variables and the observation.
+
+```{r}
+e <- p |> 
+  select(-open_interval) |> 
+  pivot_longer(
+    female:total,
+    names_to = "sex",
+    values_to = "pop"
+  ) |> 
+  # inventing column pop 1 and pop2 and taking the average based on that
+  # this will work for long time series and we will do that based on lead() and lag()
+  arrange(age, sex, year) |> 
+  mutate(
+    pop2 = lead(pop),
+    .by = c(age, sex)
+  ) |> 
+  filter(!is.na(pop2)) |> 
+  # computing exposure
+  reframe(
+    pop_exp = (pop + pop2) / 2,
+    .by = c(age,sex)
+  )
+```
+
+## task 2: calculate the fertility rates
+
+```{r}
+
+e |> 
+  filter(sex == "total") |> 
+  left_join(
+    b |> select(-year, -open_interval),
+    by = join_by(age)
+  ) |> 
+  mutate(
+    total = if_else(is.na(total),0,total)
+  ) |> 
+  summarise(
+    b = sum(total),
+    e = sum(pop_exp)
+  ) |> 
+  mutate(
+    CBR = b / e * 1000
+  )
+
+```
+
+### exercise: age-specific fertility rates
+
+Join to female, and calculate the rate doing by age.
+
+```{r}
+asfr <- e |> 
+  filter(sex == "female") |> 
+  right_join(
+    b |> select(-year, -open_interval),
+    by = join_by(age)
+  ) |>
+  mutate(
+    asfr = total / pop_exp
+  )
+
+# plotting it
+asfr |> 
+  ggplot() +
+  aes(x = age, y = asfr) +
+  geom_step(linewidth = 1.05)
+```
+
+We can add up the ASFR to get the TFR:
+```{r}
+asfr |> 
+  summarise(tfr = sum(asfr))
+```
+
+This is a synthetic cohort, and we assume that they all survived untill the end of the reproductive period.
+
+
+## mortality rates
+
+### exercise: calculate age-specific mortality rates
+
+Let's do similarly as for fertility:
+
+```{r}
+asmr <- d |> 
+  select(-year, -open_interval) |> 
+  pivot_longer(
+    c(female, male, total),
+    names_to = "sex",
+    values_to = "D"
+  ) |> 
+  left_join(
+    e,
+    by = join_by(sex, age)
+  ) |> 
+  # computing asmr
+  mutate(mx = D / pop_exp)
+```
+
+We can calculate the CDR with this too:
+```{r}
+cdr <- asmr |> 
+  summarise(
+    CDR = sum(D) / sum(pop_exp) * 1000,
+    .by = sex
+  )
+```
+
+Visualizing age-specific rates
+
+```{r}
+asmr |> 
+  filter(age <= 109) |> 
+  ggplot() +
+  aes(x = age, y = mx, color = sex) +
+  geom_line(linewidth = 1.05) +
+  scale_y_log10() +
+  geom_hline(mapping = aes(yintercept = CDR, color = sex), data = cdr)
+
+```
+

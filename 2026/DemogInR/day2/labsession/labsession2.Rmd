@@ -1,0 +1,208 @@
+---
+title: "labsession2"
+output:
+  pdf_document: default
+  html_document: default
+date: "2026-07-07"
+editor_options:
+  chunk_output_type: console
+---
+
+## R Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+# setting the wd ----------------------------------------------------------
+# setting it to the course folder
+
+setwd(file.path(here::here(),"courses","2026","DemogInR"))
+
+# Packages
+library(tidyverse)
+```
+
+# Today: lifetable and functions
+
+Let's see some useful functions `cumsum()`, `cumprod`, `rev()`.
+
+```{r}
+
+x <- 1:10
+
+cumsum(x)
+cumprod(x)
+rev(x)
+rev(x) |> cumsum()
+```
+
+## reading the data
+
+```{r}
+mort <- read_csv(
+  "https://github.com/timriffe/BSSD2026Module2/raw/refs/heads/master/data/ES_mort.csv.gz",
+  show_col_types = FALSE
+)
+head(mort)
+```
+
+
+## step 1 - qx from mx
+
+To calculate condition probabilities $q_x$, we start with $m_x$ and instrumental life table column denoted $a_x$.
+
+To denote $a_x$, we use the following formula:
+
+$$ q_x = \frac{m_x}{1 + (1-a_x) \cdot m_x}$$
+For that, we need the $a_x$, and it has a meaning: it's the average years lived in the age interval by those that die in the interval.
+
+-  Single-age groups: $a_x$ is around $\frac{1}{2}$
+
+-  For infant mortality: we follow Adreev-Kingkade
+
+```{r}
+mx_to_ax <- function(mx, age, sex = "f"){
+  ax <- case_when(
+    age == 0 & sex == "m" & mx < 0.023 ~ 0.14929 - 1.99545 * mx,
+    age == 0 & sex == "m" & mx >= 0.023 & mx < 0.08307 ~ 0.02832 + 3.26021 * mx,
+    age == 0 & sex == "m" & mx >= 0.08307 ~ 0.29915,
+    age == 0 & sex == "f" & mx < 0.01724 ~ 0.14903 - 2.05527 * mx,
+    age == 0 & sex == "f" & mx >= 0.01724 & mx < 0.06891 ~ 0.04667 + 3.88089 * mx,
+    age == 0 & sex == "f" & mx >= 0.06891 ~ 0.31411,
+    age == max(age) ~ 1 / mx,
+    TRUE ~ 0.5
+  )
+  return(ax)
+}
+```
+
+Now we transform mx into qx using ax function
+
+```{r}
+# toy mx
+
+mx <- mort |> 
+  filter(sex == "female", year == 2000) |> 
+  pull(mx)
+
+mx_to_ax(mx, age = seq(min(mort$age),max(mort$age),1), sex = rep("f",111))
+```
+
+Creating function
+
+```{r}
+mx_to_qx <- function(mx, ax){
+  qx <- mx / (1 + (1 - ax) * mx)
+  qx <- if_else(qx > 1, 1, qx)
+  return(qx)
+}
+
+# let's try it out
+age = seq(min(mort$age),max(mort$age),1)
+ax <- mx_to_ax(mx, age = age, sex = rep("f",111))
+
+qx <- mx_to_qx(mx, ax)
+
+```
+
+# Step 2 - computing lx
+
+First we need to compute px
+```{r}
+qx_to_px <- function(qx){
+  px <- 1 - qx
+  return(px)
+}
+```
+
+Then we can compute lx as a product from zero to each age
+```{r}
+px_to_lx <- function(radix, age,px){
+  lx <- case_when(
+    age == 0 ~ radix,
+    TRUE ~ radix * cumprod(px)
+  )
+  return(lx)
+}
+px <- qx_to_px(qx)
+
+lx <- px_to_lx(radix = 1e5, age = age, px)
+```
+
+# step 3 - deriving ndx
+
+$$d_x = \ell_x - \ell_{x+1} = \ell_x \cdot q_x$$
+```{r}
+lxqx_to_dx <- function(lx,qx){
+  dx <- lx * qx
+  return(dx)
+}
+
+dx <- lxqx_to_dx(lx,qx)
+```
+
+# step 4 - deriving Lx
+
+```{r}
+lxdx_to_Lx <- function(lx,dx,ax){
+  Lx <- lx - (1 - ax) * dx
+  return(Lx)
+}
+
+Lx <- lxdx_to_Lx(lx,dx,ax)
+```
+
+Lx can be thought of as lifetable exposure. It is a synthetic exposure underlying to the mortality rates we have.
+
+# step 5 - deriving ex
+
+We make an instrumental column Tx which is the total years lived from a specific age x.
+
+```{r}
+Lx_to_Tx <- function(Lx){
+  Tx <- Lx |> 
+    rev() |> 
+    cumsum() |> 
+    rev()
+  return(Tx)
+}
+Tx <- Lx_to_Tx(Lx)
+```
+
+And to get the life expectancy at each age:
+
+```{r}
+Txlx_to_ex <- function(Tx, lx){
+  ex <- Tx / lx
+  return(ex)
+}
+ex <- Txlx_to_ex(Tx,lx)
+```
+
+# comparing estimates
+
+```{r}
+sum(lx) / 1e5
+sum(dx * (age + ax)) / sum(dx)
+```
+
+# challenge
+
+We have all of these functions. Now, we can create life table for female and male.
+
+```{r}
+lt <- mort |> 
+  filter(sex != "total") |> 
+  mutate(
+    ax = mx_to_ax(),
+    qx = mx_to_qx(),
+    px = qx_to_px(),
+    lx = px_to_lx(),
+    dx = lx_to_dx(),
+    Lx = lxdx_to_Lx(),
+    Tx = Lx_to_Tx(),
+    ex = Txlx_to_ex(),
+    .by = c(sex, year)
+  )
+```
+
