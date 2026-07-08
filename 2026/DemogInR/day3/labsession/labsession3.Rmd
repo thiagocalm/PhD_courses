@@ -1,0 +1,346 @@
+---
+title: "labsession2 - decomposition"
+output:
+  pdf_document: default
+  html_document: default
+date: "2026-07-08"
+editor_options:
+  chunk_output_type: console
+---
+
+## R Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+# setting the wd ----------------------------------------------------------
+# setting it to the course folder
+
+setwd(file.path(here::here(),"2026","DemogInR"))
+
+# Packages
+library(tidyverse)
+
+# import functions from Tim for LT
+source("https://github.com/timriffe/BSSD2026Module2/raw/refs/heads/master/02_lifetables.R")
+```
+
+# Today: decomposition
+
+
+## reading the data
+
+```{r}
+mort <- read_csv(
+  "https://github.com/timriffe/BSSD2026Module2/raw/refs/heads/master/data/ES_mort.csv.gz",
+  show_col_types = FALSE
+)
+head(mort)
+```
+
+## Computing LT
+
+```{r}
+ESlt <-
+  mort |> 
+  filter(sex != "total") |> 
+  arrange(sex, year, age) |> 
+  # replaces NAs w value from lower age, only affects > 100
+  tidyr::fill(mx,
+              .direction = "down",
+              .by = c(sex, year)) |> 
+  mutate(
+    # hack only affects ages > 100
+      mx = if_else(mx == 0, .4, mx)) |> 
+  group_by(sex, year) |> 
+  group_modify(~lt_full(.x,.y,radix = 1)) |> 
+  ungroup()
+```
+
+Graphs
+```{r}
+ESlt |> 
+  filter(age == 0) |> 
+  ggplot(aes(x = ex,y=qx,color = sex, alpha = year))+
+  geom_point()
+```
+
+```{r}
+ESlt |> 
+  filter(age == 0) |> 
+  ggplot(aes(x = year, y = ex, color = sex)) +
+  geom_line()
+```
+
+# Decomposing mortality: a motivational case!
+
+Let's see the distribution of mortality
+
+```{r}
+ESlt |> 
+  filter(year == max(year)) |> 
+  ggplot() +
+  aes(x = age, y = dx, color = sex) +
+  geom_line()
+```
+
+We want to decompose a standard deviation of the distribution of mortality by gender $d_x$. We can summarise the inequality as a gap, a difference. This is going to come from the difference of mortality in each age.
+
+## R Demography Yoga exercise
+
+```{r}
+# importing a new dataset from WPP
+
+wpp <- read_csv(
+  "https://github.com/timriffe/BSSD2026Module2/raw/refs/heads/master/data/mxwpp.csv.gz"
+)
+
+head(wpp)
+
+```
+
+We will use the package `countrycode` to coding countries in a standard way.
+
+```{r}
+# we are translate UN_codes for ISO_3Alpha_code
+
+?countrycode::countrycode
+
+wpp <- wpp |> 
+  mutate(
+    iso3 = countrycode::countrycode(
+      sourcevar = un_code,
+      origin = "un",
+      destination = "iso3c"
+    )
+  ) |> 
+  filter(!is.na(iso3))
+```
+
+Computing LT for each combination of iso3,sex,year
+
+```{r}
+WPPlt <- 
+  wpp |> 
+  arrange(iso3, sex, year, age) |> 
+  group_by(iso3, sex, year) |> 
+  group_modify(~lt_full(.x,.y,radix = 1)) |> 
+  ungroup()
+```
+
+# Standardization
+
+Let's load the Spanish data from the first class
+
+```{r}
+ES <- read_csv(
+  "https://github.com/timriffe/BSSD2026Module2/raw/refs/heads/master/data/ES_mort.csv.gz",
+  show_col_types = FALSE
+)
+
+```
+
+Approach 1: summing up the deaths and exposure and dividing them
+
+```{r}
+
+ES |> 
+  summarise(
+    D = sum(deaths),
+    E = sum(exposure),
+    CDR = D / E,
+    .by = c(sex, year)
+  )
+```
+
+**Approach 2:** Treat CDR as a Weighted mean of the population exposure by the death rates
+
+$$ p_i = \frac{w_i}{\sum w_i}$$
+Which mean that
+
+$$ \bar{x} = \sum p_i \cdot x_i$$
+
+```{r}
+ES |> 
+  summarise(
+    CDR = sum(exposure * mx, na.rm = TRUE) / sum(exposure, na.rm = TRUE),
+    .by = c(year, sex)
+  )
+```
+
+Standardization is the exercise of creating contrafactual of how a death rate would be if we have another composition as observed in a specific year.
+
+```{r}
+# Reading another dataset for standards
+
+standards <- read_csv("https://github.com/timriffe/BSSD2026Module2/raw/refs/heads/master/data/standards_abridged.csv")
+```
+
+
+We have two problems using these standards with single age data. First, the standard comes in age groups, and second, the age range is different than our data. The standard thing to do is to treat the standard as a step function. That means that if a given age class is 5 years wide, that we can simply divide the value of the standard in that age class by 5 and assign the result to each of the single ages falling in that class. Programmatically, it might look like so:
+
+```{r}
+age_abr <- standards |> 
+  pull(age) |> 
+  unique()
+nx = case_when(age_abr == 0 ~ 1,
+               age_abr == 1 ~ 4,
+               age_abr == 90 ~ 1,
+               TRUE ~ 5)
+age_table <- tibble(age_single = 0:100,
+                    age = rep(age_abr, times = nx),
+                    nx = rep(nx, times = nx))
+
+eu_standard <- standards |> 
+  right_join(age_table, by = join_by(age)) |> 
+  mutate(pop = pop / nx) |> 
+  select(
+    standard,
+    age = age_single,
+    pop
+  ) |> 
+  filter(grepl(pattern = "European", x = standard)) |> 
+  select(-standard)
+  
+```
+
+Computing age-standardized CDR for Spain
+
+```{r}
+CDRstd <- ES |> 
+  filter(age <= 100) |> 
+  # join european standard
+  left_join(
+    eu_standard,
+    by = join_by(age)
+  ) |> 
+  # computing standardized cdr
+  summarise(
+    SDR = sum(mx * pop, na.rm = TRUE),
+    .by = c(year, sex)
+  )
+
+# plot it
+
+CDRstd |> 
+  filter(sex != "total") |> 
+  ggplot() +
+  aes(x = year, y = SDR, color = sex) +
+  geom_line()
+```
+
+Some notes related to the lifetable notations:
+The age-standardized rate of the lifetable uses the survival curve (Lx) is equal to $1 / e_0$.
+[COMPLETE IT WITH THE GITHUB FILE]
+
+# Decomposition
+
+
+Function to decompose it:
+
+```{r}
+lt_sd <- function(dx, age, ax){
+  dx       <- dx / sum(dx)
+  age_mid  <- age + ax
+  e0       <- sum(dx * age_mid)
+  distance <- age_mid - e0
+  lt_var   <- sum(distance ^ 2 * dx)
+  sd_lt    <- sqrt(lt_var)
+  return(sd_lt)
+}
+
+```
+
+Test it:
+
+```{r}
+ESlt |> 
+  summarise(
+    sd = lt_sd(dx, age, ax),
+    e0 = first(ex),
+    .by = c(year, sex)
+  ) |> 
+  ggplot() +
+  aes(x = e0, y = sd, color = sex) +
+  geom_point()
+
+observed_sd <- 
+  ESlt |> 
+  summarise(
+    sd = lt_sd(dx, age, ax),
+    e0 = first(ex),
+    .by = c(year, sex)
+  ) |> 
+  filter(year == max(year))
+
+gap <- diff(observed_sd$sd)
+gap
+```
+
+
+The task is to explain this gap in terms of sex differences in the age-specific mortality rates. That is, we need somehow redistribute the gap over the age range. Or better said, over the parameter range.
+
+For this, we need a function that takes a vector of mortality rates and coverts it to a scalar for the standard deviation in age at death: $$ sd = f(m_x)$$
+
+```{r}
+mx_to_sd <- function(mx){
+  dat    <- tibble(mx, age = 0:(length(mx)-1))
+  ltf    <- lt_full(.x = dat, .y = tibble(sex = "f")) 
+  ltm    <- lt_full(.x = dat, .y = tibble(sex = "m")) 
+  sd1    <- lt_sd(dx = ltf$dx, age = ltf$age, ax = ltf$ax)
+  sd2    <- lt_sd(dx = ltm$dx, age = ltm$age, ax = ltm$ax)
+  sd_out <- (sd1 + sd2) / 2
+  return(sd_out)
+}
+
+```
+
+To decompose it, once we don't have an analytical solution, we can set them. They are:
+
+1. the difference-scaled partial derivative approach. Which implies you either need to derive the gradient function (partial derivatives of your outcome with respect to the parameters that generate it), or use numerical derivative (which work surprisingly well!).
+
+2. the stepwse replacement algorithm.
+
+3. the linear integral method, a.k.a. the pseudocontinuous decomposition method, or simply the Horiuchi method. This is the one which will give more stable results.
+
+```{r}
+
+library(DemoDecomp)
+
+dec <- ES |> 
+  filter(year == 2023,
+         sex != "total") |> 
+  select(age, sex, mx) |> 
+  pivot_wider(
+    names_from = sex,
+    values_from = mx
+  ) |> 
+  mutate(
+    deltax = horiuchi(func = mx_to_sd, 
+                      pars1 = female, 
+                      pars2 = male,
+                      N = 20)
+  )
+
+
+```
+
+Plot the results to interpret them:
+
+```{r}
+dec |> 
+  ggplot() +
+  aes(x = age, y = deltax) +
+  geom_col(width = 1) +
+  geom_hline(yintercept = 0, color = "red3")
+```
+
+
+General thoughts
+
+-  Decomposition is a way of declaring that something can be decomposed. For that, it needs to be additive. Any additive phenomena can be decomposed.
+
+
+
+
+
