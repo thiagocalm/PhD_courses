@@ -16,10 +16,13 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 # setting the wd ----------------------------------------------------------
 # setting it to the course folder
 
-setwd(file.path(here::here(),"courses","2026","DemogInR"))
+setwd(file.path(here::here(),"2026","DemogInR"))
 
 # Packages
 library(tidyverse)
+
+# import functions from Tim for LT
+source("https://github.com/timriffe/BSSD2026Module2/raw/refs/heads/master/02_lifetables.R")
 ```
 
 # Today: lifetable and functions
@@ -193,16 +196,58 @@ We have all of these functions. Now, we can create life table for female and mal
 ```{r}
 lt <- mort |> 
   filter(sex != "total") |> 
+  # replace and sme unexpected values for mortality
+  arrange(sex, year, age) |> 
+  tidyr::fill(
+    mx,
+    .direction = "down",
+    .by = c(sex, year)
+  ) |> 
   mutate(
-    ax = mx_to_ax(),
-    qx = mx_to_qx(),
-    px = qx_to_px(),
-    lx = px_to_lx(),
-    dx = lx_to_dx(),
-    Lx = lxdx_to_Lx(),
-    Tx = Lx_to_Tx(),
-    ex = Txlx_to_ex(),
+    mx = if_else(mx == 0, .4, mx),
+    ax = mx_to_ax(age = age, mx = mx, sex = first(sex)),
+    qx = mx_to_qx(mx = mx, ax = ax),
+    px = qx_to_px(qx = qx),
+    lx = px_to_lx(radix = 1, px = px, age = age),
+    dx = lx * qx,
+    Lx = lxdx_to_Lx(lx = lx, dx = dx, ax = ax),
+    Tx = Lx_to_Tx(Lx),
+    ex = Txlx_to_ex(Tx, lx),
     .by = c(sex, year)
   )
+```
+
+## Doing in a Tim Riffe way
+
+```{r}
+ESlt <-
+mort |> 
+  filter(sex != "total") |> 
+  arrange(sex, year, age) |> 
+  # replaces NAs w value from lower age, only affects > 100
+  tidyr::fill(mx,
+              .direction = "down",
+              .by = c(sex, year)) |> 
+  mutate(
+    # hack only affects ages > 100
+      mx = if_else(mx == 0, .4, mx)) |> 
+  group_by(sex, year) |> 
+  group_modify(~lt_full(.x,.y,radix = 1)) |> 
+  ungroup()
+```
+
+Graphs
+```{r}
+ESlt |> 
+  filter(age == 0) |> 
+  ggplot(aes(x = ex,y=qx,color = sex, alpha = year))+
+  geom_point()
+```
+
+```{r}
+ESlt |> 
+  filter(age == 0) |> 
+  ggplot(aes(x = year, y = ex, color = sex)) +
+  geom_line()
 ```
 
