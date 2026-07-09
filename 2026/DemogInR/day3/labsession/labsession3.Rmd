@@ -340,7 +340,55 @@ General thoughts
 
 -  Decomposition is a way of declaring that something can be decomposed. For that, it needs to be additive. Any additive phenomena can be decomposed.
 
+# Challenge
 
+Use this approach to decompose the e0 between women and men. And make a plot of age-specific contribution to this gap and try to understand what this means.
 
+Step 1 - building function
 
+```{r}
+mx_to_e0 <- function(mx){
+  dat    <- tibble(mx, age = 0:(length(mx)-1))
+  ltf    <- lt_full(.x = dat, .y = tibble(sex = "f")) 
+  ltm    <- lt_full(.x = dat, .y = tibble(sex = "m")) 
+  e01    <- ltf |> pull(ex) |> first()
+  e02    <- ltm |> pull(ex) |> first()
+  e0_out <- (e01 + e02) / 2
+  return(e0_out)
+}
+
+```
+
+Step 2 - Applying it to Horiuchi function
+
+```{r}
+
+library(DemoDecomp)
+
+dec_e0 <- ES |> 
+  filter(year == 2023,
+         sex != "total") |> 
+  select(age, sex, mx) |> 
+  pivot_wider(
+    names_from = sex,
+    values_from = mx
+  ) |> 
+  mutate(
+    deltax = horiuchi(func = mx_to_e0, 
+                      pars1 = female, 
+                      pars2 = male,
+                      N = 20)
+  )
+
+```
+
+Step 3 - Plot it
+
+```{r}
+dec_e0 |> 
+  ggplot() +
+  aes(x = age, y = deltax) +
+  geom_col(width = 1) +
+  geom_hline(yintercept = 0, color = "red3")
+```
 
