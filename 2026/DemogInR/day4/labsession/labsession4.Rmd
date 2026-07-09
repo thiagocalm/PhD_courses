@@ -1,0 +1,207 @@
+---
+title: "labsession4 - theoretical pop"
+output:
+  pdf_document: default
+  html_document: default
+date: "2026-07-08"
+editor_options:
+  chunk_output_type: console
+---
+
+## R Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+# setting the wd ----------------------------------------------------------
+# setting it to the course folder
+
+setwd(file.path(here::here(),"2026","DemogInR"))
+
+# Packages
+library(tidyverse)
+
+
+```
+
+# Today: theoretical populations
+
+Data prep based on the Tim's script
+
+```{r}
+source("https://raw.githubusercontent.com/timriffe/BSSD2026Module2/refs/heads/master/04_data_prep.R")
+```
+
+
+Disccounting the stationary population from the LT. This is the default stationary age structure. Note, Lx is what we would get if we tool a census in 110 years, adding in the same number of sims per year, and holding the mortality pattern fixed.
+
+```{r}
+Lx <- LT |> 
+  filter(sex == "female") |> 
+  select(age,Lx)
+
+Lx |> 
+  ggplot() +
+  aes(x = age, y = Lx / sum(Lx)) +
+  geom_line()
+
+```
+
+We change the pop growth based on a change in the exponential growth by age.
+
+```{r}
+# library with nice colors
+library(colorspace)
+hcl_palletes(plot = TRUE) # to check them and pick them up
+
+# some hypothesis for r
+r <- seq(-.03, .03, by = .005)
+r <- tibble(r)
+
+# join them using a cross join to extend it
+
+r |> 
+  cross_join(Lx) |> 
+  #
+  mutate(
+    Cx = Lx * exp(-r * (age+0.5)),
+    Cx = Cx / sum(Cx),
+    .by = r
+  ) |> 
+  ggplot() +
+  aes(x = age, y = Cx, color = r, group = r) +
+  geom_line() +
+  scale_color_binned_diverging()
+
+
+```
+
+Now, let's see how to mechanically project out to outcomes sort of like this.
+
+We will make a Leslei matrix to do this. It's not the only way to put together pieces, but it's somehow easier to keep track of everything if we stick all the demographic parameters in the same matrix.
+
+A Leslei matrix has the fertility in its upper row and survival in its diagonal.
+
+```{r}
+Sx <- Lx |> 
+  mutate(Lx_next = lead(Lx),
+         Sx = Lx_next / Lx) |> 
+  filter(!is.na(Sx)) |> 
+  pull(Sx)
+
+L <- diag(Sx)
+Les <- rbind(0,L) |> cbind(0)
+```
+
+The survival part of the Leslei matrix is sort of easier to wrap you mind around. Yo just need to manage to put the right notion of survival probabilities on a subdiagonal.
+
+The fertility top row of the matrix has different pieces in it.
+
+1. we need to average fertility rates between consecutive ages, to match how one age class move into the next one in a projection.
+2. we need to split out girl birth from the total by assuming some SRB.
+3. we need to discount for the survival of women.
+4. the births themselves need a discount to make it to the end of the year.
+
+
+```{r}
+SRB <- 1.05
+PF <- 1 / (1 + SRB)
+asfr <- ES2014 |> 
+  filter(sex == "female") |> 
+  mutate(exposure = (pop1 + pop2) / 2) |> 
+  select(age, exposure) |> 
+  left_join(B |> select(-sex), by = join_by(age)) |> 
+  mutate(births = if_else(is.na(births), 0, births),
+         asfr = PF * births / exposure,
+         asfr2 = lead(asfr, default = 0),
+         asfr = (asfr + asfr2) / 2) |> 
+  pull(asfr)
+
+L0 <- Lx |> pull(Lx) |> first()
+
+top_rows <- asfr * L0 * (1 - ((1 - c(Sx,0)) / 2))
+Les[1,] <- top_rows
+```
+
+We can extract the "intrinsic growth rate" from the Leslei matrix, which just exploits standard eigen analysis, which is rather technical topic for a course like this, but just to point out, it's a predetermined property of the demographic parameters themselves. And this is now demonstrated because we were somehow able to exctract it from the Leslei matrix all by itself.
+
+```{r}
+r <- eigen(Les)$values |> first() |> Re() |> log()
+r
+```
+
+How to do the mechanical projection
+
+```{r}
+library(expm) # package for matrix exponentiation and log
+
+P0 <- P |> 
+  filter(sex == "female") |> 
+  pull(pop2)
+
+Les %*% P0
+(Les %*% Les) %*% P0 - (Les %^% 2) %*% P0
+
+```
+
+Now demonstrate the long horizon projection using tidy tricks:
+
+```{r}
+
+horizon <- tibble(h = 0:200)
+
+Pt <- P |> 
+  filter(sex == "female") |> 
+  select(age, P0 = pop2) |> 
+  cross_join(horizon) |> 
+  arrange(h, age) |> 
+  mutate(Pt = (Les %^% first(h)) %*% P0,
+         .by = h)
+
+
+
+```
+
+How does the population struture stabilize in 20-years time steps:
+
+```{r}
+Pt |> 
+  filter(h %% 20 == 0) |> 
+  mutate(Cx = Pt / sum(Pt),
+         .by = h) |> 
+  ggplot() +
+  aes(x = age, y = Cx, color = h, group = h) +
+  geom_line() +
+  scale_color_binned_sequential(begin = .5) +
+  geom_line(data = Pt |> 
+  filter(h == 0) |> 
+  mutate(Cx = Pt / sum(Pt),
+         .by = h), col = "red3") +
+  geom_line(data = Lx |> mutate(Cx = Lx * exp(-r * (age + .5)),
+                                Cx = Cx / sum(Cx),
+                                h = 200),
+            col = "black",
+            linewidth = 1.05) +
+  theme_minimal()
+```
+
+Comparing time-serie of crude growth rates and the intrinsic one to check how much time we need to get there
+
+```{r}
+Pt |> 
+  summarise(Pt = sum(Pt), .by = h) |> 
+  mutate(CGR = log(dplyr::lead(Pt) / Pt)) |> 
+  ggplot() +
+  aes(x = h, y = CGR) +
+  geom_line() +
+  geom_hline(yintercept = r, col = "red3", linewidth = 1.1)
+```
+
+
+
+
+
+
+
+
+
