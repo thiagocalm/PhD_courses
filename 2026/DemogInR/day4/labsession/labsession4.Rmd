@@ -198,7 +198,113 @@ Pt |>
 ```
 
 
+# Challenge:
 
+This exercise is just to demonstrate that the analysis, in terms of population structure and shape, the way of fertility spreads out means that even in that context it will have an effect of absorbing or intensifying the births shocks.
+
+Load data
+```{r}
+library(tidyverse)
+library(expm)
+source("https://raw.githubusercontent.com/timriffe/BSSD2026Module2/refs/heads/master/04_data_prep.R")
+Lx <- LT |> 
+  filter(sex == "female") |> 
+  select(age, Lx)
+Sx <-
+  Lx |> 
+  mutate(Lx_next = lead(Lx),
+         Sx = Lx_next / Lx) |> 
+  filter(!is.na(Sx)) |> 
+  pull(Sx)
+
+L <- diag(Sx)
+Les <- rbind(0,L) |> cbind(0)
+
+SRB <- 1.05
+PF <- 1 / (1 + SRB)
+asfr <-
+  ES2014 |> 
+  filter(sex == "female") |> 
+  mutate(exposure = (pop1 + pop2) / 2) |> 
+  select(age, exposure) |> 
+  left_join(B |> select(-sex), by = join_by(age)) |> 
+  mutate(births = if_else(is.na(births), 0, births),
+         asfr = PF * births / exposure,
+         asfr2 = lead(asfr, default = 0),
+         asfr = (asfr + asfr2) / 2) |> 
+  pull(asfr)
+
+L0      <- Lx |> pull(Lx) |> first()
+survival_part <- L0 * (1 - ((1-c(Sx,0)) / 2))
+```
+Now let's make some fertility assumptions to test the convergence path idea:
+```{r}
+tfrf         <- sum(asfr)
+asfr_narrow  <- tfrf * (asfr^2) / sum(asfr^2)
+asfr_wide    <- tfrf * (sqrt(asfr)) / sum(sqrt(asfr))
+
+# make top rows
+Les1 <- Les2 <- Les3 <- Les
+Les1[1, ] <- asfr * survival_part
+Les2[1, ] <- asfr_narrow * survival_part
+Les3[1, ] <- asfr_wide * survival_part
+```
+ Apply:
+```{r}
+horizon <- tibble(h = 0:500)
+Pt <- 
+  P |> 
+  filter(sex == "female") |> 
+  select(age, P0 = pop2) |> 
+  cross_join(horizon) |> 
+  arrange(h, age) |> 
+  mutate(Pt1 = (Les1 %^% first(h)) %*% P0,
+         Pt2 = (Les2 %^% first(h)) %*% P0,
+         Pt3 = (Les3 %^% first(h)) %*% P0,
+         .by = h)
+```
+ 
+Plot:
+```{r}
+Pt |> 
+  select(-P0) |> 
+  pivot_longer(Pt1:Pt3, names_to = "variant", values_to = "Pt") |> 
+  filter(h == 85) |> 
+  mutate(Cx = Pt / sum(Pt), 
+         .by = c(h,variant)) |> 
+  ggplot(aes(x = age, 
+             y = Cx, 
+             color = variant, 
+             group = variant)) +
+  geom_line() +
+  theme_minimal()
+```
+Observe: 80 years out, the wider fertility distribution has come far closer to the stable shape than the narrow distribution. The "echoes" are dampened greatly.
+
+```{r}
+Pt |> 
+  select(-P0) |> 
+  pivot_longer(Pt1:Pt3, names_to = "variant", values_to = "Pt") |> 
+  filter(h == 500) |> 
+  mutate(Cx = Pt / sum(Pt), 
+         .by = c(h,variant)) |> 
+   ggplot(aes(x = age, 
+             y = Cx, 
+             color = variant, 
+             group = variant)) +
+  geom_line() +
+  theme_minimal()
+```
+ 
+```{r}
+Pt |> 
+  select(-P0) |> 
+  pivot_longer(Pt1:Pt3, names_to = "variant", values_to = "Pt") |> 
+  summarize(Pt = sum(Pt), .by = c(variant, h)) |> 
+  mutate(rt = log(lead(Pt)/Pt), .by = variant) |> 
+  ggplot(aes(x=h,y=rt,color=variant)) +
+  geom_line()
+```
 
 
 
