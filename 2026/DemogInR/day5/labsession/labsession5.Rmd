@@ -1,0 +1,204 @@
+---
+title: "labsession5 - mortality projection"
+output:
+  pdf_document: default
+  html_document: default
+date: "2026-07-10"
+editor_options:
+  chunk_output_type: console
+---
+
+## R Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+# setting the wd ----------------------------------------------------------
+# setting it to the course folder
+
+setwd(file.path(here::here(),"2026","DemogInR"))
+
+# Packages
+library(tidyverse)
+
+source("https://raw.githubusercontent.com/timriffe/BSSD2026Module2/refs/heads/master/02_lifetables.R")
+
+```
+
+# Today: Predicting mortality
+
+Read mortality data
+
+```{r}
+mx <- read_csv("https://raw.githubusercontent.com/timriffe/BSSD2026Module2/refs/heads/master/data/ESmx.csv.gz")
+mx |> pull(year) |> range() # female mortality ranging from 1950 to 2014
+```
+
+It easier to project female mortality due to less external mortality. Also, older adults mortality is easier.
+
+# looking at the surface:
+
+```{r}
+mx |> 
+  ggplot() +
+  aes(x = year, y = age, z = log(mx)) +
+  geom_contour_filled()
+```
+
+Let's look at it on the age dimension. And we can plot alpha on top of them
+
+```{r}
+alpha <- 
+  mx |> 
+  summarise(alphax = mean(log(mx)),.by = age)
+
+mx |> 
+  ggplot() +
+  aes(x = age, y = mx) +
+  geom_line(aes(color = year, group = year)) +
+  scale_y_log10() +
+  geom_line(data = alpha,
+            aes(x = age, y= exp(alphax)),
+            color = "red3",
+            linetype = "dashed",
+            linewidth = 1.2)
+```
+
+Alpha represents a centroid of the log mortality rates.
+
+# get the matrix of centered log mortality
+
+```{r}
+clmx <- 
+  mx |> 
+  left_join(alpha, by = join_by(age)) |> 
+  mutate(lmx = log(mx),
+         clmx = lmx - alphax)
+```
+Examine the pattern
+
+```{r}
+clmx |> 
+  ggplot() +
+  aes(x = age, y = clmx, z = year, color = year, group = year) +
+  geom_line()
+```
+
+Turn CLMX into a matrix following the Lexis format. We spread years over the columns, then make the age column into row names and finally coerce to be a matrix:
+
+```{r}
+M <- clmx |> 
+  select(year, age, clmx) |> 
+  pivot_wider(names_from = year,
+              values_from = clmx) |> 
+  column_to_rownames("age") |> 
+  as.matrix()
+```
+
+Now we can SVD this matrix:
+
+```{r}
+svdM <- svd(M)
+d <- svdM$d
+U <- svdM$u
+V <- svdM$v
+
+# putting all the pieces together to recriate the original matrix
+
+(U %*% diag(d) %*% t(V)) - M
+```
+
+This is a list of three elements. And we have to pick the most important information.
+
+```{r}
+betax <- U[,1] / sum(U[,1])
+
+kappat <- V[,1] * d[1] * sum(U[,1])
+
+plot(kappat)
+```
+
+Get drift parameters and do the forecasting and predict the surface we started with.
+
+```{r}
+years <- mx |> pull(year) |> unique() |> sort()
+
+drift <-(kappat[length(kappat)] - kappat[1]) / ((2014 - 1950) - 1)
+
+horizon <- -64:30
+kappat_hat <- horizon * drift + kappat[length(kappat)]
+
+```
+
+Build tibbles and put the pieces together
+
+```{r}
+kappa <- 
+  tibble(
+    year = 2015 + horizon,
+    kappat = kappat_hat
+  )
+
+betat <- tibble(age = 0:100, betax)
+
+lc <- cross_join(kappa,betat) |> 
+  left_join(alpha, by = join_by(age)) |> 
+  mutate(mx = exp(alphax + betax * kappat))
+
+```
+
+Plotting the surface
+
+```{r}
+lc |> 
+  ggplot() +
+  aes(x = year, y = age, z = log(mx)) +
+  geom_contour_filled()
+```
+
+Potting the rates by age
+```{r}
+lc |> 
+  filter(year > 2014) |> 
+  ggplot() +
+  aes(x = age, y =mx, color = year, group = year) +
+  geom_line() +
+  scale_y_log10()
+```
+
+# Calculate the lifetables
+
+```{r}
+LTlc <- lc |> 
+  mutate(sex = "female") |>
+  group_by(year, sex) |>
+  group_modify(~lt_full(.x,.y,radix = 1)) |> 
+  ungroup()
+```
+
+Plotting e0 over time
+```{r}
+LTlc |> 
+  filter(age == 0) |> 
+  ggplot() +
+  aes(x = year, y = ex) +
+  geom_line()
+
+```
+Contrasting with the empirical LE
+
+```{r}
+mx |> 
+  mutate(sex = "female") |>
+  group_by(year, sex) |>
+  group_modify(~lt_full(.x,.y,radix = 1)) |> 
+  ungroup() |> 
+  filter(age == 0) |> 
+  ggplot() +
+  aes(x = year, y = ex) +
+  geom_point() +
+  geom_line(
+    data = LTlc |> filter(age == 0)
+  )
+```
+
