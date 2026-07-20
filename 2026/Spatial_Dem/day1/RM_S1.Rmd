@@ -1,0 +1,615 @@
+---
+title: "Session 1: Handling Spatial Objects in R"
+author: ''
+date: ''
+output:
+  html_document: default
+  pdf_document: default
+---
+
+** ** 
+**Place and Date:** *BSSD, BARCELONA, July 2025*
+
+**About the instructor:** [Juan Galeano](https://drive.google.com/file/d/18BRDj7z6MVU_oB0zeL6wY2aygHgaEqfo/view?usp=sharing)
+
+***
+
+
+![](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/first_map2.png)
+ 
+![](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/first_map.png) 
+
+# Are we all clear with this?
+
+![](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/longitude_and_latitude_simple.png)
+![](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/longitude_and_latitude_simple2.png)
+
+
+
+### What is a shapefile? (2)    
+
+[SHAPEFILE](https://en.wikipedia.org/wiki/Shapefile)
+
+The shapefile format is a popular geospatial vector data format for geographic information system (GIS) software. A shapefile is composed by 
+**Mandatory files**
+
+  + **.shp:** shape format; the feature geometry itself
+  + **.shx:** shape index format; a positional index of the feature geometry to allow seeking forwards and backwards quickly
+  + **.dbf:** attribute format; columnar attributes for each shape, in dBase IV format
+
+**Other files**
+
+  + **.prj:** projection format; the coordinate system and projection information, a plain text file describing the projection using well-known text format
+  + **.sbn and .sbx:** a spatial index of the features
+  + **.fbn and .fbx:** a spatial index of the features that are read-only
+  + **.ain and .aih:**an attribute index of the active fields in a table
+  + **.ixs:** a geocoding index for read-write datasets
+  + **.mxs:** a geocoding index for read-write datasets (ODB format)
+  + **.atx:** an attribute index for the .dbf file in the form of shapefile.columnname.atx (ArcGIS 8 and later)
+  + **.shp.xml:** geospatial metadata in XML format, such as ISO 19115 or other XML schema
+  + **.cpg:** used to specify the code page (only for .dbf) for identifying the character encoding to be used
+  + **.qix:** an alternative quadtree spatial index used by MapServer and GDAL/OGR software
+
+[<img src="http://docs.qgis.org/2.8/en/_images/point_feature.png" width="300px" height="300px" />](https://en.wikipedia.org/wiki/Shapefile) [<img src="http://docs.qgis.org/2.8/en/_images/polyline_feature.png" width="300px" height="300px" />](https://en.wikipedia.org/wiki/Shapefile) [<img src="http://docs.qgis.org/2.8/en/_images/polygon_feature.png" width="300px" height="300px" />](https://en.wikipedia.org/wiki/Shapefile)
+
+```{r instagram_embed, echo=FALSE, out.width="100%",  message = F, warning=FALSE}
+library(webshot2) 
+knitr::include_url("https://en.wikipedia.org/wiki/Shapefile")
+```
+
+
+### What is a coordinate reference system (CRS)?
+
+[CRS](https://en.wikipedia.org/wiki/Spatial_reference_system)      
+A spatial reference system (SRS) or coordinate reference system (CRS) is a framework used to precisely measure locations on the surface of the Earth as coordinates.       
+```{r instagram_embed2, echo=FALSE, out.width="100%",  out.height="100%", message = F, warning=FALSE}
+library(webshot2) 
+knitr::include_url("https://en.wikipedia.org/wiki/Spatial_reference_system")
+```
+
+[example crs](https://www.instagram.com/p/Bzx05L_HnL0/)
+![MERCATOR](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/Mercator_projection_Square.jpeg)
+      
+### Why is Africa so small?
+
+[Why is Africa so small?](https://www.instagram.com/p/C-tAPh2uNJn/)      
+
+![MERCATOR3](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/distance.png)     
+![MERCATOR2](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/Worlds_animate.gif)      
+     
+#### Understanding Map Projections          
+
+[Understanding Map Projections: Distortions and Uses](https://www.instagram.com/p/C-tAPh2uNJn/)     
+
+```{r instagram_embed3, echo=FALSE, out.width="100%",  out.height="100%", message = F, warning=FALSE}
+library(webshot2) 
+knitr::include_url("https://mapscaping.com/understanding_map_projections/")
+```
+
+### What is a bounding box (bbox)
+
+A bounding box (usually shortened to bbox) is an area defined by two longitudes and two latitudes, where:
+    
+Latitude is a decimal number between -90.0 and 90.0.     
+Longitude is a decimal number between -180.0 and 180.0.
+
+![Bounding box.](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/bbox.png)
+
+     
+     
+### Exercise 1: abortion status by states in the US, 2023
+
+[Where the abortion is now banned? New York Times, June 2023](https://www.instagram.com/reel/CuFmGgAARRP/?utm_source=ig_web_copy_link&igshid=MzRlODBiNWFlZA==)
+
+We aim to replicate the maps of the New York Times post in R, and to produce a map as the one below. 
+
+![ABORTION STATUS.](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/3_Abortion_categorical_map_composition.png)        
+
+For mapping in R, the most important thing is to have a clear idea of the data we need and the steps we need to take to get where we want to go. So, what data do we need for this exercise and what is the way forward.
+
+**Data:** We need a shapefile by states of the US and data on the abortion status for each state.
+
+**Mental path:**
+
+We need to....
+
+1. Read a shapefile of the US by states into R.     
+2. Resize Alaska.
+3. Move some polygons (Alaska and Hawaii).     
+4. Read data on the abortion status by states into R (or to create it).     
+5. Join the spatial and statistical data.     
+6. Create a color palette and a theme for plotting.       
+7. Extract the centroids of the polygons to use them to place the labels 
+with the short names of the states.      
+8. Create a ggplot object with the discrete map of the US.      
+9. Create a base map for the faceted map by status.       
+10. Create a ggplot object with the facet discrete map.      
+11. Arrange the two ggplot objects together.       
+12. Save our map as an image.       
+
+#### 1. Read shapefile into R. 
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+shapes<-"C:/Users/jgaleano/Desktop/ADAM/SESSION_1/shps"
+images<-"C:\\Users\\jgaleano\\Desktop\\ADAM\\SESSION_1\\IMAGES\\"
+
+
+library(sf)
+library(tidyverse)
+
+eeuu <- read_sf(dsn = shapes, "gadm41_USA_3") 
+
+# Explore your sf object 
+
+# Get the projection:
+st_crs(eeuu)
+
+# Get the coordinates of the bounding box:
+st_bbox(eeuu)
+
+# Info about type of variables
+eeuu|>sapply(class)
+
+# SIMPLIFY GEOMETRIES
+eeuu_simply <- st_simplify(eeuu, preserveTopology = TRUE, dTolerance = 1000)
+
+# plot your sf object
+ggplot()+
+  geom_sf(data=eeuu_simply)
+
+```
+
+#### 2. Create new sf objects with the polygons to resize and move
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+alaska<-eeuu_simply|>
+  filter(NAME_1 =="Alaska")
+
+ggplot()+
+  geom_sf(data=alaska)
+
+hawaii<-eeuu_simply|>
+  filter(NAME_1 =="Hawaii")
+```
+
+#### 3. Create a new sf object of the US without the polygons to resize and move.
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+eeuu1<-eeuu_simply|>
+  filter(NAME_1 !="Alaska",NAME_1 !="Hawaii")
+
+ggplot()+
+  geom_sf(data=eeuu1)
+```
+
+
+#### 4. Resize and move polygons
+[Manipulating Simple Feature Geometries](https://r-spatial.github.io/sf/articles/sf3.html)
+
+[Affine-transformations](https://geocompr.robinlovelace.net/geometric-operations.html#affine-transformations)
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+# extract geometries 
+alaska_g<-st_geometry(alaska)
+hawaii_g<-st_geometry(hawaii)
+
+alaska_g<-alaska_g  * .4 # make alaska to be 40% of its original size
+
+alaska_g<- alaska_g+c(-60,0) # change the position of alaska
+
+st_crs(alaska_g) #check coordinate reference system 
+
+alaska_g <- st_as_sf(alaska_g, crs=st_crs(eeuu1)) # set CRS
+
+hawaii_g<- hawaii_g+ c(50,5)
+st_crs(hawaii_g)
+hawaii_g <- st_as_sf(hawaii_g, crs=st_crs(eeuu1))
+
+ggplot() + 
+  geom_sf(data=eeuu1)+ 
+  geom_sf(data=alaska_g)+
+  geom_sf(data=hawaii_g)
+```
+
+#### 5. Create a new sf object with the new resized and moved polygons
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+
+# change name to geometry column  
+st_geometry(alaska_g) <- "geometry"
+st_geometry(hawaii_g) <- "geometry"
+
+# drop geometry column 
+df_alaska <- st_drop_geometry(alaska)
+df_hawaii <- st_drop_geometry(hawaii)
+
+# bind new geometries 
+new_alaska<-bind_cols(alaska_g,df_alaska)
+new_hawaii<-bind_cols(hawaii_g,df_hawaii)
+
+america_final<-rbind(eeuu1,new_alaska,new_hawaii)
+
+ggplot() + 
+  geom_sf(data=america_final)
+```
+
+#### 6. Save the new sf object as a shapefile
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+america_final<-america_final|>
+  select(NAME_1,VARNAME_1)
+
+#st_write(america_final, "america_final.shp")
+
+```
+
+#### 7. Create a vector with the abortion status for each state
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+
+abor<-c("Legal with\nnew protections",# vermont
+           "Legal with\nnew protections", #minnesota
+           "Full ban", # tenesse
+           "Full ban", #Missisippi
+           "15-20 weeks", #arizona
+           "Legal with\nnew protections",#illinois
+           "Legal with\nnew protections",#colorado
+           "Full ban", #oklahoma
+           "Legal with\nnew protections",#Maine
+           "Full ban", #missuri
+           "12 weeks",#Nebraska
+           "Ban blocked", # indiana
+           "Legal with\nnew protections",#Oregon
+           "Full ban",# kentucky
+           "Legal with\nnew protections",#District of columbia
+           "Legal with\nnew protections",#california
+           "Legal with\nnew protections",#Maryland
+           "Legal with\nnew protections",#Delaware
+           "Legal with\nnew protections",#washington
+           "Full ban",# West virginia
+           "Legal",#Kansas
+           "Ban blocked", # Wyoming
+           "Full ban",# Alabama
+           "Legal with\nnew protections",#NY
+           "Legal with\nnew protections",#Michigan
+           "Full ban",# South dakota
+           "Ban blocked", # Ohio
+           "Ban blocked", # South carolina
+           "Full ban",# Louisnba
+           "Legal with\nnew protections",#Connecticut
+           "Legal with\nnew protections",#New mexico
+           "15-20 weeks",# North carolina 
+           "Full ban",# Arkansa
+           "Legal",#Iowa
+           "15-20 weeks",# Utha
+           "Full ban",# North dakota
+           "Legal", #virginia
+           "Full ban",# texas
+           "Legal", #New ham
+           "Legal with\nnew protections",#Pennsylvania
+           "Full ban",# wisconsin
+           "Legal with\nnew protections",#Rodhe island
+           "Legal with\nnew protections",#New Jersey
+           "Legal with\nnew protections",#Nevada
+           "Six weeks", #Georgia
+           "Legal with\nnew protections",#Massachuset
+           "Full ban",# Idaho
+           "Ban blocked",# Montana
+           "15-20 weeks",# Florida
+        "Legal",#Alaska
+        "Legal with\nnew protections")#Hawaii
+```
+
+#### 8. Very basic data manipulation
+
+Create a new variable with the 2 digits name of each state (name_short).     
+Create a new variable (abortion) by adding the data on abortion status (abor).
+Create a new variable (general) classifying the 8 abortion status into 3 categories:
+Legal, Banned and Ban blocked.
+Re-level the factors of variables abortion and general.
+ 
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+america_final<-america_final|>
+        mutate(name_short=str_sub(VARNAME_1,1,2),
+               abortion=abor,
+               general= case_when(abortion=="Legal with\nnew protections"~"Legal",
+                                   abortion=="Legal"~"Legal",
+                                   abortion=="Full ban"~"Banned",
+                                   abortion=="Six weeks"~"Banned",
+                                   abortion=="12 weeks"~"Banned",
+                                   abortion=="15-20 weeks"~"Banned",
+                                   abortion=="Ban blocked"~"Ban blocked"),
+               abortion=fct_relevel(abortion,"Legal with\nnew protections",
+                                        "Legal",
+                                        "Ban blocked",
+                                        "Full ban",
+                                        "Six weeks",
+                                        "12 weeks",
+                                        "15-20 weeks"),
+               general=fct_relevel(general,"Legal",
+                                    "Ban blocked",
+                                    "Banned"))
+               
+
+# Correct the the 3 Common... cases. 
+america_final[14,4]<-"KY"
+america_final[40,4]<-"PA"
+america_final[46,4]<-"MA"
+```
+
+#### 9. Create a color palette and a theme for plotting 
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+colors<-c("#70A096","#B7CDC9",
+          "#F7D358",
+          "#8A0001","#AC422E","#CA745E","#DEA896")
+
+
+theme_S1<-list(theme(plot.title = element_text(lineheight=1, size=20, face="bold",hjust = 0.5), 
+                       plot.subtitle = element_text(lineheight=1, size=15, face="bold",hjust = 0.5), 
+                       plot.caption = element_text(lineheight=1, size=13, hjust=0.5), 
+                       legend.title = element_blank (),
+                       legend.text = element_text(colour="black", size = 13), 
+                       legend.position="bottom", 
+                       legend.background = element_rect(fill=NA, colour = NA), 
+                       legend.key.size = unit(1.5, 'lines'), 
+                       legend.key = element_rect(colour = NA, fill = NA), 
+                       axis.title.x = element_blank (),
+                       axis.text.x  = element_blank (), 
+                       axis.title.y =  element_blank (), 
+                       axis.text.y  = element_blank (), 
+                       axis.ticks= element_blank (), 
+                       strip.text = element_text(size=15, face="bold",margin = margin(.1,0,.1,0, "cm")), 
+                       plot.background =  element_rect(fill = "white"), 
+                       panel.grid.major=element_line(colour="white",linewidth=.5), 
+                       panel.grid.minor=element_line(colour="white",linewidth=.15), 
+                       panel.border = element_rect(colour = "white", fill=NA, linewidth=.75), 
+                       panel.background =element_rect(fill ="#FFFFFF", colour = "#FFFFFF")))
+```
+
+#### 10. Extract the centroids of polygons and plot a discrete map 
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+centroid_states<- st_centroid(america_final)
+america_final <- cbind(america_final, st_coordinates(st_centroid(centroid_states$geometry)))
+
+general_map<-ggplot(america_final, 
+               aes(fill = abortion)) + 
+  geom_sf(colour = "white",size=.025) + 
+  scale_fill_manual(name="NA",
+                    values=colors,
+                    guide = guide_legend(direction = "horizontal",
+                                         nrow = 1,
+                                         keywidth=7,
+                                         label.position = "bottom"))+
+  geom_text(aes(x=X, y=Y, label=name_short),
+            color = "white", 
+            fontface = "bold", 
+            size=2.5,
+            check_overlap = TRUE)+
+  labs(title="Abortion status by states",
+       subtitle="United States 2023",
+       caption="Elaboration: BSSD\nData: New York Times")+
+  theme_S1
+
+general_map
+
+ggsave("1_Abortion_categorical_map.png", 
+       scale = 1,
+       height = 8,
+       width=12, 
+       dpi = 300)
+
+```
+
+#### 11. Plot a facet discrete map
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+basemap<-america_final
+basemap<-basemap|>select(-general)
+
+
+facet<-ggplot(america_final) + 
+  geom_sf(data=basemap, 
+          fill = "#E8E4E6",
+          colour = "white",size=.025)+
+  geom_sf(aes(fill = abortion),colour = "white",size=.025) + 
+  facet_wrap(~general)+
+  scale_fill_manual(name="NA",
+                    values=colors,
+                    guide = guide_legend(direction = "horizontal",
+                                         nrow = 1,
+                                         keywidth=7,
+                                         label.position = "bottom"))+
+ 
+  labs(title="",
+       subtitle="",
+       caption="Elaboration: BSSD\nData: New York Times")+
+  theme_S1
+
+facet
+
+ggsave("2_Abortion_categorical_map_facet.png", 
+       scale = 1,
+       height = 8,
+       width=12, 
+       dpi = 300)
+```
+
+#### 12. Composed image discrete map 
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+# create an updated version of general removing some elements from the theme
+general_update<-general_map+theme(legend.position = "none",
+                                  plot.caption =element_blank())
+
+
+library(gridExtra)
+library(cowplot)
+
+g <- grid.arrange(general_update, facet, nrow = 2)
+
+ggdraw(g) + # Set up a drawing layer on top of a ggplot
+  theme(plot.background = element_rect(fill="#FFFFFF", color = NA))
+
+ggsave("3_Abortion_categorical_map_composition.png", 
+       scale = 1,
+       height = 8,
+       width=12, 
+       dpi = 300)
+```
+
+
+### Exercise 2: Rivers of Spain
+
+[GRASSHOPPERGEOGRAPHY](https://www.instagram.com/grasshoppergeography/)
+
+Our cartographic hero today is Robert Szucs from [grasshoppergeography.com](https://www.grasshoppergeography.com/). In this second exercise, we aim to create a map of the rivers of Spain. Instead of differentiating rivers by basins, as Robert generally does, we want to assign colors to the rivers in relation to the Spanish region where they are. We also want to add a second layer to our map with the boundaries of the Spanish regions. 
+
+We are provided with a polygons shapefile of Spain by provinces. **ESP_adm2**, from [GADM](https://gadm.org/) and a lines shapefile of the rivers of Europe, **HydroRIVERS_v10_eu**, from [Hydrosheds](https://data.hydrosheds.org/)
+
+![RIVERS OF SPAIN](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/rivers_spain.png) 
+
+```{r fig.width=12, fig.height=10,echo = T, message = F, warning=FALSE}
+esp  <- read_sf(dsn = shapes, "ESP_adm2")
+
+esp<-esp|>filter(NAME_1!="Islas Canarias")
+
+ggplot(esp) + 
+  geom_sf()+
+  theme_bw()
+
+esp_regions <-esp %>% 
+  group_by(ID_1) %>% 
+  summarise(NAME_prov = unique(NAME_1)) %>% 
+  # st_buffer(0.5) %>% 
+  st_cast() 
+
+# note: the st_buffer function helps us cleaning sliver, however it can create some misalignment between layers. 
+
+ggplot(esp_regions) + 
+  geom_sf()+
+  theme_bw()
+
+# Let's get the bbox of our map
+st_bbox(esp_regions)
+
+bbox_wkt <- "POLYGON((
+  -9.301806  35.170582,
+  -9.301806  43.791527,
+   4.328195  43.791527,
+   4.328195  35.170582,
+  -9.301806  35.170582  
+))"
+
+
+country_rivers  <- read_sf(dsn = shapes, "HydroRIVERS_v10_eu",
+                wkt_filter = bbox_wkt) 
+
+ggplot()+
+  geom_sf(data=esp_regions)+
+  geom_sf(data=country_rivers)+
+  theme_bw()
+
+country_rivers<-country_rivers|>
+  mutate(ORD_FLOW=as.factor(ORD_FLOW))
+
+mysizes <-c(.1,
+            .075,
+            .05,
+            .025,
+            .012,
+            .007)
+
+ggplot()+
+  geom_sf(data=esp_regions,linewidth=1)+
+  geom_sf(data=country_rivers,aes(linewidth=ORD_FLOW))+
+  scale_linewidth_manual(values=mysizes*15)+
+  theme_void()+
+  theme(legend.position = "none")
+
+
+ggsave(paste(images,"Rivers_1.png",sep=""), # name of the file of the image
+       scale = 1, 
+       dpi = 300,     
+       height =25, #25  #10 
+       width = 24)
+
+#rivers_esp<- st_intersection(esp_regions,country_rivers)
+#rivers_esp  <- read_sf(dsn = shapes, "spain_rivers")
+
+library(terra)
+
+# Convert to SpatVector
+esp_vect <- vect(esp_regions)
+river_vect <- vect(country_rivers)
+
+# Perform intersection
+rivers_esp_vect <- intersect(river_vect, esp_vect)
+rivers_esp <- st_as_sf(rivers_esp_vect)
+
+
+rivers_esp<-rivers_esp|>
+  mutate(ORD_FLOW=as.factor(ORD_FLOW))
+
+ggplot() +
+  geom_sf(data=rivers_esp,aes(linewidth=ORD_FLOW,
+                              color=NAME_prov))+
+  scale_linewidth_manual(values=mysizes*15)+
+  geom_sf(data=esp_regions, fill=NA,colour="#fafafa", linewidth=.5)+
+  theme_void()+
+  theme(legend.position = "none",
+        plot.background =  element_rect(fill = "black"))
+
+ggsave(paste(images,"Rivers_2.png",sep=""), # name of the file of the image
+       scale = 1, 
+       dpi = 300,     
+       height =25, #25  #10 
+       width = 24)
+```
+
+# Consolidation exercise 1 
+
+1. Read ESP_adm2 into R. 
+2. Move the Canary Island to a convenient place close to peninsular Spain. 
+3. Save your new sf object as a shapefile.
+4. Create a discrete map of Spain filling polygons belonging to same region (Hint: NAME_1) with the same color. Also Add labels with the name of the provinces. 
+6. Your map should look similar to the one below. (**NOTE:** the instructor is a lazy guy and he used the default color palette from ggplot. Don't be as lazy as the instructor, please.)
+ 
+![CONSOLIDATION EXERCISE 1](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/EX1.png) 
+
+
+# Consolidation exercise 2 
+
+1. In folder of shps you will find the shapefile **Seccionado_2019** (the region of Madrid by census tracts). Read it into R under the name **mad**. 
+  
+2. Answer the following questions: 
+  + 2.1 By how many polygons is this shapefile composed?
+  + 2.2 Which is the CRS associated to this shapefile? 
+  + 2.3 Which is the bounding box (bbox) corresponding to this shapefile?
+  
+3. Create a new sf object **mad_mun** keeping only the census tract of the municipality of Madrid (079).  
+
+4. Create a new sf object with the division by neighborhoods (barrios) of Madrid. 
+  + 4.1 By how many neighborhoods is Madrid composed?
+
+5. Create a new sf object with the division by districts (distritos) of Madrid.
+  + 5.1 By how many districts is Madrid composed?
+  + 5.2 Which is the districts with more neighborhoods in Madrid?
+
+6. Read the excel file **nombres_distritos_madrid** and add the names of the district to your sf object with the division by districts (distritos) of Madrid. Hint: you can perform a _left_join_. using varibles **CDDISTRITO**.
+
+7. Create a Multi-Layer map of the municipality of by census tract overlaying the neighborhoods and districts boundaries and adding the name of each district on its centroid. Save your final map as an image. 
+
+8. Save the sf objects of the map as separate shapefiles.
+
+Your map should look similar to the one below.
+
+
+![MADRID](C:/Users/jgaleano/Desktop/ADAM/SESSION_1/IMAGES/rmark/EX2.png)      
+
+# Consolidation exercise 3         
+
+Our map of Spain’s rivers looks great and served the purpose of practicing how to handle different spatial objects in R. However, mixing a natural layer (rivers) with an administrative one (regional boundaries) might not be the most effective visual approach.
+
+Can you think of a better way to present the map if we want to show both the rivers and the regional divisions? Notice you have a shapefile of european basin (**hybas_eu_lev04_v1c**) in the folder of today's materials. I’d love to see your proposals!

@@ -1,0 +1,18 @@
+---
+title: "Consolidation exercises - Day1"
+author: "Thiago Cordeiro-Almeida"
+date: "2026-07-20"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exercise 1
+
+![](IMAGES_class/Exercise_Spain_provinceANDregions_map.png)
+
+# Exercise 2
+
+![](IMAGES_class/Exercise_Madrid_districtsANDcensustract_map.png)
