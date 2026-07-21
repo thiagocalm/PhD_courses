@@ -1,0 +1,18 @@
+---
+title: "Consolidation Exercises - Day2"
+author: "Thiago Cordeiro-Almeida"
+date: "2026-07-21"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exercise 1
+
+![](images/Exercise_ViolenceAgainstWomen.png)
+
+# Exercise 2
+
+![](images/Exercise2_AirbnbBcn.png)
