@@ -1,0 +1,24 @@
+---
+title: "Consolidation Exercises - Day3"
+author: "Thiago Cordeiro-Almeida"
+date: "2026-07-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+All the code is available on my [github]()
+
+# Exercise 1
+
+![](images/Exercise_BarsInMadrid.png)
+
+# Exercise 2
+
+![](images/Exercise_LeftAtMargins.png)
+
+# Exercise 3
+
+I didn't have time to conclude.
