@@ -9,7 +9,7 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-All the code is available on my [github]()
+All the code is available on my [github/thiagocalm](https://github.com/thiagocalm/PhD_courses/blob/master/2026/Spatial_Dem/day3/labsession3.R).
 
 # Exercise 1
 
