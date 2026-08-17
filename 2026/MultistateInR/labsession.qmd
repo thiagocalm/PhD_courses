@@ -127,5 +127,12 @@ s <- dtms_start(data = estdata,
 dtms_expectancy(probs = probs,
                 dtms = simple,
                 start_distr = s)
+
+# conditioned to state A - risk of state A
+
+dtms_risk(probs = probs,
+          dtms = simple,
+          risk = "A")
+
 ```
 
