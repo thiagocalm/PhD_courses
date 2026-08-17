@@ -1,0 +1,131 @@
+---
+title: "labsession - workshop on Life Course Analysis (Christian Dudel)"
+author: "tca"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+# Package
+
+We can find all info on github for the whole documentation, [click here](https://github.com/christiandudel/dtms).
+
+```{r}
+library(pacman)
+p_load(dtms, tidyverse)
+```
+
+# Data and some miscelaneous stuffs in the package
+
+We will start using simulated data into the package. This is a panel data in the long format.
+```{r}
+head(simpledata)
+help(simpledata)
+
+# exploring data structure
+simpledata$time |> unique()
+simpledata$id |> unique() |> length()
+simpledata$state |> unique()
+```
+
+# Define model
+
+We will setup the multistate model using the package `dtms`.
+
+First we define the model using `dtms()`
+
+```{r}
+simple <- dtms(transient = c("A","B"),
+               absorbing = "X",
+               timescale = 0:19)
+```
+
+Transforming model into a transition format.
+
+```{r}
+estdata <- dtms_format(data = simpledata,
+                       dtms = simple,
+                       idvar = "id",
+                       timevar = "time",
+                       statevar = "state")
+```
+
+Having a summary of the data in the transition format
+```{r}
+estdata |> summary()
+```
+
+There are some stuffs that we have to get rid of transitions we do not want to have there. For that, there is a function for it.
+
+```{r}
+estdata <- dtms_clean(data = estdata,
+                      dtms = simple)
+estdata |> summary()
+```
+
+To deal with censoring in the data, we can also use a function for it.
+
+```{r}
+dtms_censoring(data = estdata,
+               dtms = simple)
+```
+
+# Parametric models for transition probabilities
+
+Let's fit a model using previous transition data
+
+```{r}
+fit <- dtms_fit(data = estdata,
+                controls = "time")
+fit |> summary()
+```
+
+To predict probabilities
+
+```{r}
+probs <- dtms_transitions(model = fit,
+                          dtms = simple,
+                          controls = list(time=0:19))
+
+probs |> head()
+probs |> summary()
+estdata |> summary()
+```
+
+Let's check how it looks like now.
+
+```{r}
+# rbase way
+
+# probs |> plot(dtms=simple)
+
+# in a ggplot way
+
+probs |> 
+  dtms_simplify() |> 
+  ggplot() +
+  aes(x=time,y=P,color=to) +
+  geom_line() +
+  facet_wrap(~ from)
+```
+
+# Estimation
+
+We can easily have the state expectancy using
+
+```{r}
+
+# state expectancy at starting state
+dtms_expectancy(probs = probs,
+                dtms = simple)
+
+# unconditional state expectancy
+
+s <- dtms_start(data = estdata,
+                dtms = simple)
+
+dtms_expectancy(probs = probs,
+                dtms = simple,
+                start_distr = s)
+```
+
