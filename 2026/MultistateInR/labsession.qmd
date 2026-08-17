@@ -136,3 +136,12 @@ dtms_risk(probs = probs,
 
 ```
 
+# Exercise
+
+We can use a simulated dataset for working trajectories, `workdata`.
+
+```{r}
+?workdata
+workdata |> head()
+```
+
