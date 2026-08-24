@@ -306,7 +306,7 @@ en_duelo_prev <- function(tipos) {
   p0_acum %>%
     filter(kin %in% tipos) %>%
     summarise(p0_acum = prod(p0_acum), .by = c(sex_focal, age_focal)) %>%
-    left_join(exposicion_2018, by = c("sex_focal", "age_focal")) %>%
+    left_join(exposicion_2023, by = c("sex_focal", "age_focal")) %>%
     mutate(b = (1 - p0_acum) * exposicion) %>%
     summarise(personas = sum(b)) %>%
     pull(personas)
