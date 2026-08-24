@@ -7,7 +7,6 @@
 # Los scripts de preparación de datos (prep/) son de uso interno de los docentes
 # (dependen de rutas locales) y NO se versionan.
 # =============================================================================
-
 # --- R / RStudio ---
 .Rproj.user
 .Rhistory
@@ -15,46 +14,38 @@
 .Ruserdata
 .Rapp.history
 *.Rproj
-
 # --- Claude / herramientas de IA (no versionar ninguna evidencia de uso) ---
 .claude/
 .claude*
 CLAUDE.md
 **/.claude/
-
 # --- Sitio renderizado y artefactos de knitr/rmarkdown (salida) ---
 *_files/
 *_cache/
 # Al ejecutar un módulo por separado (no vía index.Rmd), knitr usa cache/ y figure/
 cache/
 figure/
-
 # --- Materiales de referencia (PDFs/Word grandes; no forman parte del sitio) ---
 _ref/
 sim_results_socsim_Colombia.sup*
 prep
-
 # --- Datos crudos del WPP (demasiado grandes; se descargan aparte) ---
 data/wpp2024_raw/
 *.csv.gz
-
 # --- Carpeta heredada del flujo antiguo con .zip (ya no se usa; los datos del
 #     WPP se versionan sin comprimir en data/wpp_latam_1950_2023/) ---
 data/wpp_latam/
-
 # --- Salidas intermedias del modelo de parentesco (Módulos 2, 3 y 4) ---
 # Se regeneran ejecutando los laboratorios o prep/03_build_kinship_colombia.R.
 data/colombia/col_kin_1985_2018.parquet
 data/kin_*.rds
 data/kin_*.parquet
-
 # --- SOCSIM (Módulos 5-6): la simulación corre dentro de socsim/. Se versiona
 #     SOLO el archivo de configuración; todo lo generado (presim.*, rates/,
 #     sim_results_*) queda excluido. ---
 socsim/*
 !socsim/socsim_Colombia.sup
 data/socsim_*.rds
-
 # Red de seguridad: artefactos de SOCSIM que pudieran quedar en otra carpeta
 *.opop
 *.omar
@@ -64,7 +55,6 @@ data/socsim_*.rds
 *.pop
 *.omor
 *.log
-
 # --- Diapositivas: versionar SOLO las presentaciones finales (.pdf, .pptx) para
 #     que quienes clonen el repositorio las reciban completas; ignorar la fuente
 #     (.tex, refs.bib), las figuras (figures/, figures_src/) y todos los
@@ -73,8 +63,8 @@ diapositivas/*
 !diapositivas/*.pdf
 !diapositivas/*.pptx
 !diapositivas/*.ppt
-
 # --- Sistema ---
 .DS_Store
 Thumbs.db
 desktop.ini
+data
