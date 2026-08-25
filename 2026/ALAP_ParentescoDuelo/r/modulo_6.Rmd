@@ -1,7 +1,17 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+wd <- file.path(here::here(),"2026","ALAP_ParentescoDuelo","r")
+setwd(wd)
+```
+
 ### Módulo 6 · Simulaciones: pérdida de parientes y conclusiones {#modulo6}
 
-*A cargo de Liliana Calderón.* (Adaptado del taller de la Escuela ALAP 2024;
-sección de pérdida de parientes preparada originalmente por Mallika Snyder.)
+*A cargo de Liliana Calderón.* (Adaptado del taller de la Escuela ALAP 2024; sección de pérdida de parientes preparada originalmente por Mallika Snyder.)
 
 Una vez corrida la simulación (Módulo 5), SOCSIM nos proporciona una **genealogía sintética** de toda la población: sabemos cuándo nace, se casa y muere cada individuo, y quiénes son sus padres y su cónyuge. Con estos datos, podemos reconstruir redes de parentesco extensas para cada individuo, incluso parientes lejanos que son difíciles de captar en un censo o una encuesta. En este taller, mostraremos un ejemplo de cómo han cambiado las tasas de **pérdida parientes** a lo largo del tiempo. Este enfoque complementa los modelos analíticos de los módulos 2 y 3. Sin embargo, hay muchas más formas de utilizar SOCSIM para estudiar estas y otras cuestiones sobre las dinámicas de parentesco.
 
@@ -35,10 +45,7 @@ omar <- sim$omar
 
 #### 6.1 Preparar los datos {#m6-prep}
 
-SOCSIM registra el tiempo en **meses**. Una función auxiliar convierte los meses
-en años calendario, y con ella calculamos el año de nacimiento y de defunción de
-cada individuo (a quienes siguen vivos al final les asignamos el último mes
-simulado como fecha de defunción):
+SOCSIM registra el tiempo en **meses**. Una función auxiliar convierte los meses en años calendario, y con ella calculamos el año de nacimiento y de defunción de cada individuo (a quienes siguen vivos al final les asignamos el último mes simulado como fecha de defunción):
 
 ```{r m6-prep-data}
 asYr <- function(month, last_month, final_sim_year) {
@@ -58,11 +65,11 @@ opop <- opop %>%
 
 #### 6.2 Una función para estimar la pérdida de parientes {#m6-funcion}
 
-Para identificar a los parientes en SOCSIM, utilizamos relaciones de parentesco por consanguinidad directa -como padres e hijos- y afinidad -como cónyuges-. Este es el principio en el que se basa la función `retrieve_kin()` incluida en `rsocsim` que puede utilizarse para identificar parientes de diversos tipos (padres, hijos, abuelos, hermanos, cónyuges, y mucho más). Puedes leer la documentación completa de esta función escribiendo `?retrieve_kin` en la consola. 
+Para identificar a los parientes en SOCSIM, utilizamos relaciones de parentesco por consanguinidad directa -como padres e hijos- y afinidad -como cónyuges-. Este es el principio en el que se basa la función `retrieve_kin()` incluida en `rsocsim` que puede utilizarse para identificar parientes de diversos tipos (padres, hijos, abuelos, hermanos, cónyuges, y mucho más). Puedes leer la documentación completa de esta función escribiendo `?retrieve_kin` en la consola.
 
 Además de permitirnos identificar más fácilmente las redes de parentesco, SOCSIM también nos proporciona información valiosa sobre la cronología de los eventos vitales, como nacimientos, muertes y matrimonios, en estas redes. Esto puede ayudarnos a relacionar los cambios en las tasas demográficas con los cambios en las redes de parentesco disponibles para nuestros individuos simulados, a menudo a un nivel temporal muy preciso (meses o años)
 
-En este ejercicio, usamos como grupo de referencia a las **mujeres de 25 a 39 años que están vivas en un año determinado** (la muestra cambia cada año). La función `getKinLoss()` identifica a esas mujeres, recupera a sus parientes con `rsocsim::retrieve_kin()` y calcula, para cada tipo de pariente, qué proporción de la muestra perdió a un familiar ese año y qué proporción tenía un familiar vivo el año anterior. El código es una versión simplificada de las funciones utilizadas en un trabajo de investigación anterior [@snyder_estimates_2022]. 
+En este ejercicio, usamos como grupo de referencia a las **mujeres de 25 a 39 años que están vivas en un año determinado** (la muestra cambia cada año). La función `getKinLoss()` identifica a esas mujeres, recupera a sus parientes con `rsocsim::retrieve_kin()` y calcula, para cada tipo de pariente, qué proporción de la muestra perdió a un familiar ese año y qué proporción tenía un familiar vivo el año anterior. El código es una versión simplificada de las funciones utilizadas en un trabajo de investigación anterior [@snyder_estimates_2022].
 
 ```{r m6-getkinloss}
 getKinLoss <- function(year_of_interest, opop, omar) {
@@ -176,31 +183,15 @@ kinloss_data %>%
   theme_bw()
 ```
 
-> **Interpretación.** Como cabría esperar para este grupo de edad, las tasas más
-> altas de pérdida corresponden a abuelos y padres. El aumento de la
-> disponibilidad de abuelos a lo largo del tiempo refleja la mayor esperanza de
-> vida; la caída en la disponibilidad de hijos y cónyuges refleja el descenso de
-> la fecundidad y la nupcialidad.
+> **Interpretación.** Como cabría esperar para este grupo de edad, las tasas más altas de pérdida corresponden a abuelos y padres. El aumento de la disponibilidad de abuelos a lo largo del tiempo refleja la mayor esperanza de vida; la caída en la disponibilidad de hijos y cónyuges refleja el descenso de la fecundidad y la nupcialidad.
 
 #### 6.5 Conclusiones {#m6-conclusiones}
 
-En este taller recorrimos dos familias de métodos para la demografía del
-parentesco y del duelo:
+En este taller recorrimos dos familias de métodos para la demografía del parentesco y del duelo:
 
-- Los **modelos analíticos matriciales** (DemoKin, Módulos 2–3), que dan valores
-  esperados de parientes vivos y fallecidos de forma rápida y transparente, y que
-  usamos para estimar el duelo a nivel poblacional (incidencia, multiplicadores,
-  prevalencia y su distribución por edad).
-- La **microsimulación** (SOCSIM, Módulos 5–6), que genera genealogías completas
-  y permite estudiar redes de parentesco extensas y la cronología de los eventos
-  vitales.
+- Los **modelos analíticos matriciales** (DemoKin, Módulos 2–3), que dan valores esperados de parientes vivos y fallecidos de forma rápida y transparente, y que usamos para estimar el duelo a nivel poblacional (incidencia, multiplicadores, prevalencia y su distribución por edad).
+- La **microsimulación** (SOCSIM, Módulos 5–6), que genera genealogías completas y permite estudiar redes de parentesco extensas y la cronología de los eventos vitales.
 
-Ambos enfoques son complementarios: los modelos analíticos son eficientes y
-exactos en la media; la microsimulación captura la variabilidad individual y
-relaciones de parentesco difíciles de modelar analíticamente. Juntos ofrecen un
-conjunto de herramientas potente para cuantificar cómo la mortalidad —y en
-particular la violencia— reverbera a través de las familias.
+Ambos enfoques son complementarios: los modelos analíticos son eficientes y exactos en la media; la microsimulación captura la variabilidad individual y relaciones de parentesco difíciles de modelar analíticamente. Juntos ofrecen un conjunto de herramientas potente para cuantificar cómo la mortalidad —y en particular la violencia— reverbera a través de las familias.
 
-> **Más información.** Documentación de `rsocsim`:
-> <https://mpidr.github.io/rsocsim/>. Documentación de `DemoKin`:
-> <https://github.com/IvanWilli/DemoKin>.
+> **Más información.** Documentación de `rsocsim`: <https://mpidr.github.io/rsocsim/>. Documentación de `DemoKin`: <https://github.com/IvanWilli/DemoKin>.

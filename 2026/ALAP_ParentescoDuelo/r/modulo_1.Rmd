@@ -28,7 +28,7 @@ ajustarse durante las sesiones.
 **Lunes 24 de agosto**
 
 | Horario | Sesión |
-|------------------------------------|------------------------------------|
+|----|----|
 | 8:30–9:00 | Bienvenida · Presentación cultural |
 | 9:00–10:30 | **Módulo 1** · Introducción a la demografía del parentesco + preparación técnica |
 | 10:30–11:00 | Merienda |

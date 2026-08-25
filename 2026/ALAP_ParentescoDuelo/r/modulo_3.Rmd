@@ -113,7 +113,7 @@ glimpse(kin)
 Definimos etiquetas legibles y los **dos grupos de parentesco** que usa el artículo (lo que llamamos familia *extendida* es lo que el artículo llama *distant/lejana*):
 
 | Grupo | Parientes que lo componen | Códigos |
-|------------------------|------------------------|------------------------|
+|----|----|----|
 | **Familia cercana** ($\mathcal{C}$) | hijas/os, madres/padres, hermanas/os | `d`, `m`, `s` |
 | **Familia extendida** ($\mathcal{D}$) | abuelas/os, nietas/os, tías/os, sobrinas/os, primas/os | `gm`, `gd`, `a`, `n`, `c` |
 

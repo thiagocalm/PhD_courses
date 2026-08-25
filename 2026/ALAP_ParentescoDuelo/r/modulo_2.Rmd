@@ -50,11 +50,9 @@ Aquí $\mathbf{k}(x)$ es un **vector**, no un número: es la distribución por e
 
 Este encadenamiento —un pariente "produce" a otro— es justamente lo que resume el **diagrama de parentesco** de la sección 2.2.
 
-**La condición inicial** $\mathbf{k}_0$: los parientes al nacer Focal. La recurrencia necesita un punto de partida a la edad 0. Para los **descendientes** es trivial: al nacer, Focal todavía no tiene hijas ni nietas, así que $\mathbf{d}(0)=\mathbf{0}$. Para los **ascendientes**, en cambio, la condición inicial la fija la estructura de la población. El caso fundamental es la **madre**: la distribución por edad de la madre en el instante en que nace Focal es la distribución de las **edades a la maternidad**,
-$$\mathbf{m}(0) = \boldsymbol{\pi},
+**La condición inicial** $\mathbf{k}_0$: los parientes al nacer Focal. La recurrencia necesita un punto de partida a la edad 0. Para los **descendientes** es trivial: al nacer, Focal todavía no tiene hijas ni nietas, así que $\mathbf{d}(0)=\mathbf{0}$. Para los **ascendientes**, en cambio, la condición inicial la fija la estructura de la población. El caso fundamental es la **madre**: la distribución por edad de la madre en el instante en que nace Focal es la distribución de las **edades a la maternidad**, $$\mathbf{m}(0) = \boldsymbol{\pi},
 \qquad
-\pi_y = \frac{n_y\,f_y}{\sum_{y'} n_{y'}\,f_{y'}},$$
-es decir, las mujeres en edad fértil ponderadas por su fecundidad $f_y$ y su número $n_y$. A partir de la madre se derivan, "subiendo" una generación, la abuela, las tías y los hermanos que Focal ya tiene al nacer.
+\pi_y = \frac{n_y\,f_y}{\sum_{y'} n_{y'}\,f_{y'}},$$ es decir, las mujeres en edad fértil ponderadas por su fecundidad $f_y$ y su número $n_y$. A partir de la madre se derivan, "subiendo" una generación, la abuela, las tías y los hermanos que Focal ya tiene al nacer.
 
 **Las condiciones de frontera: el modelo variable en el tiempo.** Hasta aquí las tasas eran fijas. En el modelo **variable en el tiempo** las matrices llevan un índice de año calendario ($\mathbf{U}_t$, $\mathbf{F}_t$): cuando Focal pasa de la edad $x$ a $x+1$, el calendario también avanza un año, de modo que una cohorte recorre una **diagonal** en el diagrama de Lexis, atravesando las tasas de años sucesivos. Esto obliga a fijar una **condición de frontera temporal**: qué tasas regían *antes* del primer año con datos. DemoKin supone que la población era **estable** con las tasas de ese primer año. Por eso importa dónde arranca la serie: empezar en 1950 en lugar de 1900 (como hace el artículo del Módulo 3) altera un poco las estimaciones de los parientes más lejanos, cuyas trayectorias comienzan mucho antes del nacimiento de Focal.
 
